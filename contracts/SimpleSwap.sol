@@ -20,7 +20,7 @@ contract SimpleSwap is ISimpleSwap, ERC20 {
         require(_isContract(_tokenA), "SimpleSwap: TOKENA_IS_NOT_CONTRACT");
         require(_isContract(_tokenB), "SimpleSwap: TOKENB_IS_NOT_CONTRACT");
         require(_tokenA != _tokenB, "SimpleSwap: TOKENA_TOKENB_IDENTICAL_ADDRESS");
-
+        // TODO: tokenA's address should be less than tokenB's address
         ERC20(_tokenA);
         ERC20(_tokenB);
     }
@@ -34,6 +34,10 @@ contract SimpleSwap is ISimpleSwap, ERC20 {
         return (size > 0);
     }
 
+    function _validToken(address _token) private view returns (bool isValid) {
+        return _isContract(_token) && (address(tokenA) == _token || address(tokenB) == _token);
+    }
+
     /// @notice Swap tokenIn for tokenOut with amountIn
     /// @param tokenIn The address of the token to swap from
     /// @param tokenOut The address of the token to swap to
@@ -43,7 +47,35 @@ contract SimpleSwap is ISimpleSwap, ERC20 {
         address tokenIn,
         address tokenOut,
         uint256 amountIn
-    ) external returns (uint256 amountOut) {}
+    ) external returns (uint256 amountOut) {
+        // forces error, when tokenIn is not tokenA or tokenB
+        require(_validToken(tokenIn), "SimpleSwap: INVALID_TOKEN_IN");
+        // forces error, when tokenOut is not tokenA or tokenB
+        require(_validToken(tokenOut), "SimpleSwap: INVALID_TOKEN_OUT");
+        // forces error, when tokenIn is the same as tokenOut
+        require(tokenIn != tokenOut, "SimpleSwap: IDENTICAL_ADDRESS");
+        // forces error, when amountIn is zero
+        require(amountIn > 0, "SimpleSwap: INSUFFICIENT_INPUT_AMOUNT");
+        // forces error, when amountOut is zero
+        require(amountOut > 0, "SimpleSwap: INSUFFICIENT_OUTPUT_AMOUNT");
+
+        address sender = _msgSender();
+        uint256 reserveTokenIn = ERC20(tokenIn).balanceOf(address(this));
+        uint256 reserveTokenOut = ERC20(tokenOut).balanceOf(address(this));
+        uint256 diffK = reserveTokenOut * (reserveTokenIn + amountIn) - kLast;
+        uint256 amountOut = diffK / (reserveTokenIn + amountIn);
+
+        ERC20(tokenIn).transferFrom(sender, address(this), amountIn);
+        ERC20(tokenOut).transfer(sender, amountOut);
+
+        // should be able to swap from tokenA to tokenB: update reserveA, reserveB
+        reserveA = tokenA.balanceOf(address(this));
+        reserveB = tokenB.balanceOf(address(this));
+
+        emit Swap(sender, tokenIn, tokenOut, amountIn, amountOut);
+
+        return amountOut;
+    }
 
     /// @notice Add liquidity to the pool
     /// @param amountAIn The amount of tokenA to add
@@ -68,13 +100,19 @@ contract SimpleSwap is ISimpleSwap, ERC20 {
     /// @notice Get the reserves of the pool
     /// @return reserveA The reserve of tokenA
     /// @return reserveB The reserve of tokenB
-    function getReserves() external view returns (uint256 reserveA, uint256 reserveB) {}
+    function getReserves() external view returns (uint256 reserveA, uint256 reserveB) {
+        return (reserveA, reserveB);
+    }
 
     /// @notice Get the address of tokenA
     /// @return tokenA The address of tokenA
-    function getTokenA() external view returns (address tokenA) {}
+    function getTokenA() external view returns (address tokenA) {
+        return address(tokenA);
+    }
 
     /// @notice Get the address of tokenB
     /// @return tokenB The address of tokenB
-    function getTokenB() external view returns (address tokenB) {}
+    function getTokenB() external view returns (address tokenB) {
+        return address(tokenB);
+    }
 }
