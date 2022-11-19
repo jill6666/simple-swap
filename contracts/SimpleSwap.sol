@@ -10,9 +10,28 @@ import "hardhat/console.sol";
 contract SimpleSwap is ISimpleSwap, ERC20 {
     // Implement core logic here
 
+    ERC20 public tokenA;
+    ERC20 public tokenB;
+    uint256 public kLast;
+    uint256 public reserveA;
+    uint256 public reserveB;
+
     constructor(address _tokenA, address _tokenB) ERC20("MyToken", "MTK") {
+        require(_isContract(_tokenA), "SimpleSwap: TOKENA_IS_NOT_CONTRACT");
+        require(_isContract(_tokenB), "SimpleSwap: TOKENB_IS_NOT_CONTRACT");
+        require(_tokenA != _tokenB, "SimpleSwap: TOKENA_TOKENB_IDENTICAL_ADDRESS");
+
         ERC20(_tokenA);
         ERC20(_tokenB);
+    }
+
+    // ref: https://ethereum.stackexchange.com/questions/15641/how-does-a-contract-find-out-if-another-address-is-a-contract
+    function _isContract(address _addr) private view returns (bool isContract) {
+        uint32 size;
+        assembly {
+            size := extcodesize(_addr)
+        }
+        return (size > 0);
     }
 
     /// @notice Swap tokenIn for tokenOut with amountIn
